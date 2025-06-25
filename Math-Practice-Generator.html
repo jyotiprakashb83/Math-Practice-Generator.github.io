@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Math Practice Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      .no-print { display: none; }
+      .question-container { page-break-inside: avoid; }
+      #questions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-start p-4 font-sans">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-4xl relative">
+    <!-- Print Button (Top Right) -->
+    <button id="printBtn" class="no-print absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">Print</button>
+
+    <!-- Header -->
+    <h1 class="text-3xl font-bold text-center text-blue-600 mb-6">Math Practice Generator</h1>
+
+    <!-- Controls -->
+    <div class="no-print mb-6 space-y-4">
+      <!-- Question Type Selection -->
+      <div>
+        <label class="block text-gray-700 font-medium mb-2">Select Question Types:</label>
+        <div class="flex space-x-4">
+          <label><input type="checkbox" id="addition" checked class="mr-1">Addition</label>
+          <label><input type="checkbox" id="subtraction" checked class="mr-1">Subtraction</label>
+          <label><input type="checkbox" id="multiplication" checked class="mr-1">Multiplication</label>
+          <label><input type="checkbox" id="division" checked class="mr-1">Division</label>
+        </div>
+      </div>
+
+      <!-- Number of Questions -->
+      <div>
+        <label for="numQuestions" class="block text-gray-700 font-medium mb-2">Number of Questions:</label>
+        <input type="number" id="numQuestions" min="1" max="50" value="10" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+
+      <!-- Number of Digits -->
+      <div>
+        <label for="numDigits" class="block text-gray-700 font-medium mb-2">Number of Digits:</label>
+        <select id="numDigits" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="1">1 Digit</option>
+          <option value="2" selected>2 Digits</option>
+          <option value="3">3 Digits</option>
+        </select>
+      </div>
+
+      <!-- Session History Dropdown -->
+      <div>
+        <label for="sessionHistory" class="block text-gray-700 font-medium mb-2">Session History:</label>
+        <select id="sessionHistory" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Select a saved paper</option>
+        </select>
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex space-x-2">
+        <button id="generateBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Generate</button>
+        <button id="refreshBtn" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Refresh</button>
+        <button id="clearStorageBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Clear Session History</button>
+      </div>
+    </div>
+
+    <!-- Questions Display -->
+    <div id="questions" class="grid grid-cols-3 gap-4"></div>
+  </div>
+
+  <script>
+    // Initialize session storage for papers
+    let papers = JSON.parse(sessionStorage.getItem('mathPapers')) || [];
+    updateSessionHistory();
+
+    // Event Listeners
+    document.getElementById('generateBtn').addEventListener('click', generateQuestions);
+    document.getElementById('refreshBtn').addEventListener('click', generateQuestions);
+    document.getElementById('printBtn').addEventListener('click', () => window.print());
+    document.getElementById('clearStorageBtn').addEventListener('click', clearStorage);
+    document.getElementById('sessionHistory').addEventListener('change', (e) => {
+      if (e.target.value) loadPaper(parseInt(e.target.value));
+    });
+
+    // Generate random math question
+    function generateQuestion(types, digits) {
+      const operators = types.length > 0 ? types : ['+', '-', '*', '/'];
+      const op = operators[Math.floor(Math.random() * operators.length)];
+      const maxNum = Math.pow(10, digits) - 1;
+      const minNum = Math.pow(10, digits - 1);
+      let a, b, answer;
+
+      switch (op) {
+        case '+':
+          a = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+          b = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+          answer = a + b;
+          break;
+        case '-':
+          a = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+          b = Math.floor(Math.random() * (a - minNum + 1)) + minNum;
+          answer = a - b;
+          break;
+        case '*':
+          a = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+          b = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+          answer = a * b;
+          break;
+        case '/':
+          b = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+          answer = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+          a = b * answer;
+          break;
+      }
+
+      return { question: `${a} ${op} ${b} =`, answer };
+    }
+
+    // Generate questions
+    function generateQuestions() {
+      const numQuestions = parseInt(document.getElementById('numQuestions').value);
+      const digits = parseInt(document.getElementById('numDigits').value);
+
+      if (isNaN(numQuestions) || numQuestions < 1 || numQuestions > 50) {
+        alert('Please enter a number between 1 and 50.');
+        return;
+      }
+
+      const types = [];
+      if (document.getElementById('addition').checked) types.push('+');
+      if (document.getElementById('subtraction').checked) types.push('-');
+      if (document.getElementById('multiplication').checked) types.push('*');
+      if (document.getElementById('division').checked) types.push('/');
+
+      if (types.length === 0) {
+        alert('Please select at least one question type.');
+        return;
+      }
+
+      const questions = [];
+      const questionsDiv = document.getElementById('questions');
+      questionsDiv.innerHTML = '';
+
+      for (let i = 0; i < numQuestions; i++) {
+        const q = generateQuestion(types, digits);
+        questions.push(q);
+        const div = document.createElement('div');
+        div.className = 'question-container flex items-center space-x-2';
+        div.innerHTML = `
+          <span class="flex-1">${i + 1}. ${q.question}</span>
+          <input type="number" class="w-20 p-1 border rounded" data-answer="${q.answer}">
+          <span class="result text-xl"></span>
+        `;
+        questionsDiv.appendChild(div);
+      }
+
+      // Save to session storage
+      const paperId = Date.now();
+      papers.push({ id: paperId, questions });
+      sessionStorage.setItem('mathPapers', JSON.stringify(papers));
+      updateSessionHistory();
+
+      // Add answer checking
+      document.querySelectorAll('#questions input').forEach(input => {
+        input.addEventListener('input', checkAnswer);
+      });
+    }
+
+    // Check answer
+    function checkAnswer(e) {
+      const input = e.target;
+      const correctAnswer = parseFloat(input.getAttribute('data-answer'));
+      const userAnswer = parseFloat(input.value);
+      const resultSpan = input.nextElementSibling;
+
+      if (isNaN(userAnswer)) {
+        resultSpan.textContent = '';
+        return;
+      }
+
+      if (Math.abs(userAnswer - correctAnswer) < 0.01) {
+        resultSpan.textContent = '✓';
+        resultSpan.className = 'result text-green-500 text-xl';
+      } else {
+        resultSpan.textContent = '✗';
+        resultSpan.className = 'result text-red-500 text-xl';
+      }
+    }
+
+    // Update session history dropdown
+    function updateSessionHistory() {
+      const sessionHistory = document.getElementById('sessionHistory');
+      sessionHistory.innerHTML = '<option value="">Select a saved paper</option>';
+      papers.forEach(paper => {
+        const option = document.createElement('option');
+        option.value = paper.id;
+        option.textContent = `Paper ${new Date(paper.id).toLocaleString()}`;
+        sessionHistory.appendChild(option);
+      });
+    }
+
+    // Load a saved paper
+    function loadPaper(id) {
+      const paper = papers.find(p => p.id === id);
+      if (!paper) return;
+
+      const questionsDiv = document.getElementById('questions');
+      questionsDiv.innerHTML = '';
+
+      paper.questions.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = 'question-container flex items-center space-x-2';
+        div.innerHTML = `
+          <span class="flex-1">${i + 1}. ${q.question}</span>
+          <input type="number" class="w-20 p-1 border rounded" data-answer="${q.answer}">
+          <span class="result text-xl"></span>
+        `;
+        questionsDiv.appendChild(div);
+      });
+
+      document.querySelectorAll('#questions input').forEach(input => {
+        input.addEventListener('input', checkAnswer);
+      });
+    }
+
+    // Clear session storage
+    function clearStorage() {
+      sessionStorage.removeItem('mathPapers');
+      papers = [];
+      updateSessionHistory();
+      document.getElementById('questions').innerHTML = '';
+    }
+  </script>
+</body>
+</html>
